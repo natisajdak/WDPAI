@@ -1,0 +1,116 @@
+/* 1. Zmienne CSS (Custom Properties) - Paleta przemysłowa */
+:root {
+    --color-brand: #eab308;
+    --color-brand-hover: #ca8a04;
+    --color-text: #182230;
+    --color-surface: #ffffff;
+    --color-background: #f4f7fb;
+    --color-border: #d1d5db;
+    
+    --space-1: 0.5rem;
+    --space-2: 1rem;
+    --space-3: 1.5rem;
+    --radius: 0.5rem;
+}
+
+/* Motyw ciemny (wymagany w docelowym projekcie) */
+[data-theme="dark"] {
+    --color-text: #f7f9fc;
+    --color-surface: #1f2937;
+    --color-background: #111827;
+    --color-border: #374151;
+}
+
+/* 2. Box model reset */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+/* 3. Podstawowa typografia i układ bazowy */
+body {
+    margin: 0;
+    color: var(--color-text);
+    background-color: var(--color-background);
+    font-family: system-ui, -apple-system, sans-serif;
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* 4. Responsywny kontener (mobile-first) z użyciem funkcji matematycznych */
+.page-container {
+    width: min(100% - 2rem, 72rem);
+    margin-inline: auto;
+    padding: var(--space-3) 0;
+    display: grid;
+    place-items: center;
+    flex-grow: 1;
+}
+
+/* 5. Karty (np. formularz logowania) */
+.card {
+    background: var(--color-surface);
+    padding: var(--space-3);
+    border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+    width: 100%;
+    max-width: 24rem;
+}
+
+h1 {
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    margin-top: 0;
+    text-align: center;
+}
+
+/* 6. Formularz układany Gridem */
+.form-layout {
+    display: grid;
+    gap: var(--space-2);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.form-control {
+    padding: var(--space-1);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-background);
+    color: var(--color-text);
+    font-size: 1rem;
+}
+
+/* 7. Stany elementów (Focus i Hover) */
+.btn-primary {
+    background: var(--color-brand);
+    color: #111827;
+    border: none;
+    padding: var(--space-2);
+    border-radius: var(--radius);
+    font-weight: bold;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: opacity 0.2s, background-color 0.2s;
+}
+
+.btn-primary:hover {
+    background: var(--color-brand-hover);
+}
+
+.btn-primary:focus-visible, 
+.form-control:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--color-brand) 50%, transparent);
+    outline-offset: 2px;
+}
+
+.text-center {
+    text-align: center;
+    display: block;
+    margin-top: var(--space-2);
+    color: var(--color-text);
+}
