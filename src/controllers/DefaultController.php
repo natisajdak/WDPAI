@@ -12,7 +12,7 @@ final class DefaultController extends AppController
     }
 
     public function notFound(): void {
-        $this->render('not-found', ['pageTitle' => 'Nie znaleziono strony']);
+        $this->render('not-found');
     }
 
     // --- NOWE METODY (Projekt Widlak) ---
