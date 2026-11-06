@@ -1,3 +1,4 @@
+<?php include 'header.php'; ?>
 <!doctype html>
 <html lang="pl">
 <head><title>Flota wózków </title></head>
@@ -20,3 +21,4 @@
     </main>
 </body>
 </html>
+<?php include 'footer.php'; ?>

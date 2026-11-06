@@ -1,3 +1,5 @@
+<?php include 'header.php'; ?>
+
 <!doctype html>
 <html lang="pl" data-theme="light">
 <head>
@@ -35,3 +37,5 @@
     </main>
 </body>
 </html>
+
+<?php include 'footer.php'; ?>

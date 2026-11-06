@@ -1,3 +1,4 @@
+<?php include 'header.php'; ?>
 <!doctype html>
 <html lang="pl">
 <head><title>Karta Wózka </title></head>
@@ -19,3 +20,4 @@
     </main>
 </body>
 </html>
+<?php include 'footer.php'; ?>
