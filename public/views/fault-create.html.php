@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="pl">
-<head><title>Zgłoś usterkę - Widlak</title></head>
+<head><title>Zgłoś usterkę - Cargo</title></head>
 <body>
     <main>
         <h1>Zgłoś nową usterkę (WD-01)</h1>

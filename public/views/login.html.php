@@ -15,8 +15,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!empty($email) && !empty($password)) {
         try {
             $pdo = new PDO(
-                "pgsql:host=db;port=5432;dbname=widlak", 
-                "widlak_app", 
+                "pgsql:host=db;port=5432;dbname=cargo", 
+                "cargo_app", 
                 "change_me_app", 
                 [
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -65,7 +65,7 @@ ob_start();
         <form action="login.php" method="POST" class="form-layout">
             <div class="form-group">
                 <label for="email">Adres e-mail</label>
-                <input type="email" id="email" name="email" class="form-control" required autofocus placeholder="operator@widlak.local">
+                <input type="email" id="email" name="email" class="form-control" required autofocus placeholder="operator@cargo.local">
             </div>
             
             <div class="form-group">

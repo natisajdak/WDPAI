@@ -17,7 +17,7 @@ $routing = new Routing();
 // $routing->get('/users/{id}', UserController::class, 'profile');
 // $routing->get('/', DefaultController::class, 'index');
 
-// --- NOWE TRASY (Aktywne - Projekt Widlak) ---
+// --- NOWE TRASY (Aktywne - Projekt Cargo) ---
 $routing->get('/login', DefaultController::class, 'login');
 $routing->get('/dashboard', DefaultController::class, 'dashboard');
 $routing->get('/forklifts', DefaultController::class, 'forklifts');

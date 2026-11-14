@@ -15,7 +15,7 @@ final class DefaultController extends AppController
         $this->render('not-found');
     }
 
-    // --- NOWE METODY (Projekt Widlak) ---
+    // --- NOWE METODY (Projekt Cargo) ---
     public function login(): void {
         $this->render('login');
     }
