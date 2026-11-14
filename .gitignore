@@ -1,8 +1,20 @@
-.env
-.idea/
-.vscode/
-.DS_Store
-vendor/
-node_modules/
-docker/data/
+# Sekrety i konfiguracja lokalna
+/.env
+
+# Zależności
 /vendor/
+
+# Dane runtime (struktura katalogów zostaje dzięki .gitkeep)
+/storage/uploads/*
+!/storage/uploads/.gitkeep
+/storage/logs/*
+!/storage/logs/.gitkeep
+
+# Narzędzia
+/.phpunit.cache/
+/.php-cs-fixer.cache
+
+# IDE i system
+/.idea/
+/.vscode/
+.DS_Store
