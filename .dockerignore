@@ -1,0 +1,11 @@
+.git
+.github
+.env
+.idea
+.vscode
+.DS_Store
+vendor
+storage/uploads/*
+storage/logs/*
+docs
+*.md

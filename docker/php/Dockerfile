@@ -1,37 +1,35 @@
-FROM php:8.3-fpm-alpine
+# syntax=docker/dockerfile:1
 
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+FROM composer:2 AS composer
 
-WORKDIR /app
+# Wspólna baza: PHP-FPM z rozszerzeniami potrzebnymi aplikacji i zadaniom CRON.
+FROM php:8.4-fpm-alpine AS base
 
-RUN apk add --no-cache \
-        zlib \
-        libzip \
-        libpng \
-        libjpeg-turbo \
-        postgresql-libs \
-    && apk add --no-cache --virtual .build-deps \
-        zlib-dev \
-        libzip-dev \
-        libpng-dev \
-        libjpeg-turbo-dev \
-        postgresql-dev \
-        $PHPIZE_DEPS \
-    && docker-php-ext-configure gd --with-jpeg \
-    && docker-php-ext-install -j"$(nproc)" \
-        opcache \
-        zip \
-        gd \
-        bcmath \
-        pgsql \
-        pdo_pgsql \
+# Pakiety -dev są potrzebne tylko do kompilacji rozszerzeń, więc usuwamy je w tej samej warstwie.
+# supercronic zamiast busybox crond, bo przekazuje zmienne środowiskowe do uruchamianych zadań.
+RUN apk add --no-cache libpq supercronic tzdata \
+    && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS postgresql-dev \
+    && docker-php-ext-install pdo_pgsql opcache \
     && apk del .build-deps
 
-RUN { \
-      echo 'memory_limit = -1'; \
-      echo 'upload_max_filesize = 512M'; \
-      echo 'post_max_size = 512M'; \
-      echo 'max_file_uploads = 20'; \
-    } > /usr/local/etc/php/conf.d/mealplanner.ini
+COPY --from=composer /usr/bin/composer /usr/bin/composer
+COPY docker/php/php.ini /usr/local/etc/php/conf.d/zz-app.ini
+COPY docker/php/entrypoint.sh /usr/local/bin/app-entrypoint
+RUN chmod +x /usr/local/bin/app-entrypoint
 
+WORKDIR /var/www/html
+
+ENTRYPOINT ["app-entrypoint"]
+CMD ["php-fpm"]
+
+# Środowisko developerskie: kod montowany jako bind mount, błędy widoczne, opcache odświeża pliki.
+FROM base AS dev
+COPY docker/php/php.dev.ini /usr/local/etc/php/conf.d/zz-app-dev.ini
+
+# Produkcja: kod i zależności zapieczone w obrazie, bez pakietów developerskich.
+FROM base AS prod
+COPY composer.json composer.lock* ./
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction
 COPY . .
+RUN composer dump-autoload --no-dev --optimize --classmap-authoritative \
+    && chown -R www-data:www-data storage
