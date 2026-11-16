@@ -1,0 +1,6 @@
+# Harmonogram zadań cyklicznych (supercronic, strefa czasowa z TZ).
+# Zadania zostaną włączone w etapie 10, gdy powstanie bin/console.php:
+#
+# */15 * * * * php /var/www/html/bin/console.php cron:complete-reservations
+# 0 6 * * *    php /var/www/html/bin/console.php cron:udt-reminders
+# 0 3 * * *    php /var/www/html/bin/console.php cron:purge-tokens

@@ -1,0 +1,71 @@
+# Środowisko developerskie. Uruchomienie: cp .env.example .env && docker compose up --build
+name: cargo
+
+x-php: &php
+  build:
+    context: .
+    dockerfile: docker/php/Dockerfile
+    target: dev
+  image: cargo-php:dev
+  env_file: .env
+  volumes:
+    - ./:/var/www/html
+    # Uploady w wolumenie: przetrwają restart i nie trafią do repozytorium.
+    - uploads:/var/www/html/storage/uploads
+  depends_on:
+    db:
+      condition: service_healthy
+
+services:
+  web:
+    image: nginx:1.27-alpine
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    volumes:
+      - ./public:/var/www/html/public:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+
+  app:
+    <<: *php
+    environment:
+      RUN_COMPOSER_INSTALL: "1"
+
+  cron:
+    <<: *php
+    command: ["supercronic", "/etc/supercronic/crontab"]
+    environment:
+      TZ: Europe/Warsaw
+    volumes:
+      - ./:/var/www/html
+      - uploads:/var/www/html/storage/uploads
+      - ./docker/cron/crontab:/etc/supercronic/crontab:ro
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      TZ: Europe/Warsaw
+    ports:
+      - "${DB_FORWARD_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Wykonywany tylko przy pierwszym starcie, gdy wolumen pgdata jest pusty.
+      - ./database/cargo.sql:/docker-entrypoint-initdb.d/cargo.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+
+volumes:
+  pgdata:
+  uploads:
