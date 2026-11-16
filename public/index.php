@@ -2,37 +2,24 @@
 
 declare(strict_types=1);
 
-use App\Controller\DefaultController;
-use App\Controller\ProjectController;
-use App\Controller\UserController;
-use App\Routing;
+// Tymczasowy punkt wejścia do sprawdzenia infrastruktury (etap 1).
+// W etapie 3 zastąpi go Kernel z routerem, a sprawdzenie bazy przeniesie się do osobnej trasy.
 
-require_once dirname(__DIR__) . '/vendor/autoload.php';
+header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store');
 
-$routing = new Routing();
+$status = ['php' => PHP_VERSION, 'database' => 'unavailable'];
 
-// --- STARE TRASY (Wyłączone znakiem "//" - są nieaktywne, ale gotowe do przywrócenia) ---
-// $routing->get('/projects', ProjectController::class, 'index');
-// $routing->get('/projects/{id}', ProjectController::class, 'show');
-// $routing->get('/users/{id}', UserController::class, 'profile');
-// $routing->get('/', DefaultController::class, 'index');
-
-// --- NOWE TRASY (Aktywne - Projekt Cargo) ---
-$routing->get('/login', DefaultController::class, 'login');
-$routing->get('/dashboard', DefaultController::class, 'dashboard');
-$routing->get('/forklifts', DefaultController::class, 'forklifts');
-$routing->get('/forklifts/{id}', DefaultController::class, 'forkliftShow');
-$routing->get('/faults/new', DefaultController::class, 'faultCreate');
-
-// Przekierowujemy główny adres bezpośrednio na logowanie
-$routing->get('/', DefaultController::class, 'login');
-
-$routeFound = $routing->dispatch(
-    $_SERVER['REQUEST_METHOD'],
-    $_SERVER['REQUEST_URI'],
-);
-
-if (!$routeFound) {
-    http_response_code(404);
-    (new DefaultController())->notFound();
+try {
+    $dsn = sprintf('pgsql:host=%s;port=%s;dbname=%s', getenv('DB_HOST'), getenv('DB_PORT'), getenv('DB_NAME'));
+    $pdo = new PDO($dsn, (string) getenv('DB_USER'), (string) getenv('DB_PASSWORD'), [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    ]);
+    $status['database'] = (string) $pdo->query('SELECT version()')->fetchColumn();
+    http_response_code(200);
+} catch (PDOException $e) {
+    error_log('Health check: ' . $e->getMessage());
+    http_response_code(503);
 }
+
+echo json_encode($status, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR), "\n";
