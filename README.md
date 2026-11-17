@@ -34,7 +34,175 @@ Główne funkcje:
 
 ## Diagram ERD bazy danych
 
-*(w przygotowaniu)*
+Schemat: [database/migrations/002_schema.sql](database/migrations/002_schema.sql). Na diagramie są wszystkie tabele, klucze i istotne kolumny. Pominięte zostały tylko pomocnicze znaczniki czasu (`created_at`).
+
+```mermaid
+erDiagram
+    ROLES ||--o{ USERS : "przypisana do"
+    USERS ||--o{ PASSWORD_RESET_TOKENS : "posiada"
+    USERS ||--o{ RESERVATIONS : "tworzy"
+    USERS |o--o{ FAULTS : "zgłasza / rozwiązuje"
+    WAREHOUSES |o--o{ FORKLIFTS : "przechowuje"
+    FORKLIFT_MODELS ||--o{ FORKLIFTS : "jest modelem"
+    FORKLIFTS ||--o{ TECHNICAL_INSPECTIONS : "badany"
+    TECHNICAL_INSPECTIONS ||--o{ UDT_REMINDERS : "przypomnienia"
+    FORKLIFTS ||--o{ RESERVATIONS : "rezerwowany"
+    FORKLIFTS ||--o{ FAULTS : "dotyczy"
+    RESERVATIONS ||--o| INSPECTIONS : "kontrola przed jazdą"
+    INSPECTIONS ||--|{ INSPECTION_ANSWERS : "zawiera"
+    CHECKLIST_ITEMS ||--o{ INSPECTION_ANSWERS : "oceniana w"
+    INSPECTIONS |o--o{ FAULTS : "wykrywa"
+    FAULTS ||--o{ FAULT_PHOTOS : "ma"
+
+    ROLES {
+        smallint id PK
+        varchar code UK "OPERATOR | ADMIN"
+        varchar name_key
+    }
+    USERS {
+        bigint id PK
+        smallint role_id FK
+        varchar email UK
+        varchar password_hash "NULL do ustawienia hasła"
+        varchar first_name
+        varchar last_name
+        char locale "pl | en"
+        boolean is_active
+        timestamptz last_login_at
+    }
+    PASSWORD_RESET_TOKENS {
+        bigint id PK
+        bigint user_id FK
+        char token_hash UK "SHA-256"
+        timestamptz expires_at
+        timestamptz used_at
+    }
+    WAREHOUSES {
+        int id PK
+        varchar name UK
+        varchar address
+    }
+    FORKLIFT_MODELS {
+        int id PK
+        varchar manufacturer "UK z model_name"
+        varchar model_name
+        varchar fuel_type "ELECTRIC | LPG | DIESEL"
+        int max_load_kg
+        int max_lift_height_mm
+    }
+    FORKLIFTS {
+        bigint id PK
+        int model_id FK
+        int warehouse_id FK "NULL po likwidacji magazynu"
+        varchar internal_code UK
+        varchar serial_number UK
+        smallint production_year
+        varchar status "AVAILABLE | OUT_OF_SERVICE | RETIRED"
+        timestamptz updated_at
+    }
+    TECHNICAL_INSPECTIONS {
+        bigint id PK
+        bigint forklift_id FK
+        date inspection_date
+        date valid_until
+        varchar protocol_number UK
+        text notes
+    }
+    UDT_REMINDERS {
+        bigint id PK
+        bigint technical_inspection_id FK "UK z days_before"
+        smallint days_before
+        timestamptz sent_at
+    }
+    RESERVATIONS {
+        bigint id PK
+        bigint forklift_id FK
+        bigint user_id FK
+        timestamptz starts_at
+        timestamptz ends_at
+        varchar status "ACTIVE | CANCELLED | COMPLETED"
+        timestamptz cancelled_at
+    }
+    CHECKLIST_ITEMS {
+        int id PK
+        varchar code UK
+        varchar label_key
+        boolean is_critical
+        smallint sort_order
+        boolean is_active
+    }
+    INSPECTIONS {
+        bigint id PK
+        bigint reservation_id FK, UK
+        timestamptz performed_at
+        text notes
+    }
+    INSPECTION_ANSWERS {
+        bigint inspection_id PK, FK
+        int checklist_item_id PK, FK
+        boolean is_ok
+        text comment "wymagany przy NIE OK"
+    }
+    FAULTS {
+        bigint id PK
+        bigint forklift_id FK
+        bigint reported_by FK
+        bigint inspection_id FK
+        bigint resolved_by FK
+        varchar title
+        text description
+        varchar severity "LOW | MEDIUM | CRITICAL"
+        varchar status "OPEN | IN_PROGRESS | RESOLVED | REJECTED"
+        timestamptz resolved_at
+        text resolution_note
+    }
+    FAULT_PHOTOS {
+        bigint id PK
+        bigint fault_id FK
+        varchar file_path UK "ścieżka względna"
+        varchar original_name
+        varchar mime_type
+        int size_bytes
+    }
+    CRON_RUNS {
+        bigint id PK
+        varchar job_name
+        timestamptz started_at
+        timestamptz finished_at
+        varchar status "RUNNING | SUCCESS | FAILED"
+        int affected_rows
+        text message
+    }
+```
+
+### Zachowanie kluczy obcych przy usuwaniu
+
+| Klucz obcy | ON DELETE | Uzasadnienie |
+|---|---|---|
+| `users.role_id` | RESTRICT | Nie usuwamy roli, do której są przypisani użytkownicy |
+| `password_reset_tokens.user_id` | CASCADE | Token nie ma sensu bez użytkownika |
+| `forklifts.model_id` | RESTRICT | Nie usuwamy modelu, który ma wózki |
+| `forklifts.warehouse_id` | SET NULL | Po likwidacji magazynu wózek zostaje, tylko bez przypisania |
+| `technical_inspections.forklift_id` | CASCADE | Badania są częścią historii wózka |
+| `udt_reminders.technical_inspection_id` | CASCADE | Log przypomnień należy do badania |
+| `reservations.forklift_id`, `reservations.user_id` | RESTRICT | Historia użycia jest ważna: wózki wycofujemy statusem `RETIRED`, konta dezaktywujemy |
+| `inspections.reservation_id` | CASCADE | Kontrola istnieje tylko w ramach rezerwacji |
+| `inspection_answers.inspection_id` | CASCADE | Odpowiedzi są częścią kontroli |
+| `inspection_answers.checklist_item_id` | RESTRICT | Pozycję checklisty dezaktywujemy, a nie usuwamy |
+| `faults.forklift_id` | RESTRICT | Historia usterek jest ważna |
+| `faults.reported_by`, `faults.resolved_by`, `faults.inspection_id` | SET NULL | Zgłoszenie zostaje, nawet gdy powiązany rekord zniknie |
+| `fault_photos.fault_id` | CASCADE | Zdjęcia są częścią zgłoszenia (pliki usuwa aplikacja) |
+
+### Mechanizmy w bazie
+
+| Obiekt | Rodzaj | Do czego służy |
+|---|---|---|
+| `reservations_forklift_no_overlap`, `reservations_user_no_overlap` | ograniczenia `EXCLUDE` | Rezerwacje jednego wózka i jednego operatora nie mogą się nakładać, nawet przy równoczesnych żądaniach |
+| `trg_faults_critical_after_insert` | wyzwalacz | Usterka `CRITICAL` wyłącza wózek i anuluje jego przyszłe rezerwacje |
+| `trg_forklifts_set_updated_at` | wyzwalacz | Aktualizuje `forklifts.updated_at` |
+| `fn_forklift_is_available()` | funkcja | Sprawdza status, ważność UDT i kolizje rezerwacji w danym przedziale czasu |
+| `v_forklift_overview` | widok | Lista wózków z modelem, magazynem, ważnością UDT i liczbą otwartych usterek |
+| `v_monthly_usage` | widok | Raport miesięczny: godziny pracy i liczba usterek dla każdego wózka |
 
 ## Routing / endpointy
 
@@ -109,7 +277,48 @@ Wszystkie zmienne są opisane w [.env.example](.env.example). Plik `.env` nie tr
 
 ## Import bazy i dane demonstracyjne
 
-*(w przygotowaniu)*
+Plik [database/cargo.sql](database/cargo.sql) odtwarza cały schemat i dane demo na pustej bazie. Kontener `db` importuje go automatycznie przy pierwszym starcie, czyli wtedy, gdy wolumen `pgdata` jest pusty.
+
+Plik jest generowany przez skrypt z migracji (`database/migrations`) i seedów (`database/seeds`). Po zmianie którejkolwiek z nich trzeba go wygenerować ponownie:
+
+```bash
+bin/build-sql.sh
+```
+
+Ponowny import od zera (usuwa dane i uploady):
+
+```bash
+docker compose down -v && docker compose up --build
+```
+
+Import do istniejącej, pustej bazy bez Dockera:
+
+```bash
+psql -v ON_ERROR_STOP=1 -d cargo -f database/cargo.sql
+```
+
+### Konta demonstracyjne
+
+Hasło każdego konta: `Cargo2026!`
+
+| E-mail | Rola | Uwagi |
+|---|---|---|
+| `admin@cargo.local` | ADMIN | Kierownik: wózki, UDT, użytkownicy, usterki, raporty |
+| `operator@cargo.local` | OPERATOR | Ma trwającą rezerwację WD-01 bez kontroli przed jazdą (demo checklisty) |
+| `operator2@cargo.local` | OPERATOR | Interfejs i e-maile po angielsku |
+| `nieaktywny@cargo.local` | OPERATOR | Konto dezaktywowane: logowanie jest odrzucane |
+
+### Stan floty w danych demo
+
+Daty są liczone względem chwili importu, więc scenariusze demo działają niezależnie od dnia uruchomienia.
+
+| Wózek | Stan |
+|---|---|
+| WD-01, WD-02, WD-03, WD-07 | Dostępne. WD-01 i WD-07 są teraz w użyciu |
+| WD-04 | Wyłączony przez wyzwalacz po zgłoszeniu usterki krytycznej (hamulce) |
+| WD-05 | Badanie UDT wygasa za 10 dni (demo przypomnienia CRON) |
+| WD-06 | Badanie UDT wygasło (rezerwacja jest odrzucana) |
+| WD-08 | Wycofany z eksploatacji (`RETIRED`) |
 
 ## Testy
 

@@ -125,7 +125,7 @@ public/index.php ──► Kernel ──► Router ──► Middleware (Session
 
 | Tabela | Kolumny (najważniejsze) | Ograniczenia |
 |---|---|---|
-| `roles` | `id`, `code`, `name_key` | `code` UNIQUE, CHECK `code IN ('OPERATOR','ADMIN','MECHANIC')` |
+| `roles` | `id`, `code`, `name_key` | `code` UNIQUE, CHECK `code IN ('OPERATOR','ADMIN')` (`MECHANIC` dopisujemy, jeśli zapadnie taka decyzja) |
 | `users` | `id`, `role_id`, `email`, `password_hash`, `first_name`, `last_name`, `locale`, `is_active`, `created_at`, `last_login_at` | UNIQUE na `lower(email)`, CHECK `locale IN ('pl','en')` |
 | `password_reset_tokens` | `id`, `user_id`, `token_hash` (SHA-256), `expires_at`, `used_at` | `token_hash` UNIQUE |
 | `warehouses` | `id`, `name`, `address` | `name` UNIQUE |
@@ -139,7 +139,7 @@ public/index.php ──► Kernel ──► Router ──► Middleware (Session
 | `inspection_answers` | `inspection_id`, `checklist_item_id`, `is_ok`, `comment` | PK(`inspection_id`,`checklist_item_id`) |
 | `faults` | `id`, `forklift_id`, `reported_by`, `inspection_id`, `title`, `description`, `severity`, `status`, `created_at`, `resolved_at`, `resolved_by`, `resolution_note` | CHECK `severity IN ('LOW','MEDIUM','CRITICAL')`, CHECK `status IN ('OPEN','IN_PROGRESS','RESOLVED','REJECTED')` |
 | `fault_photos` | `id`, `fault_id`, `file_path` (ścieżka względna), `original_name`, `mime_type`, `size_bytes`, `uploaded_at` | CHECK `size_bytes > 0`, `file_path` UNIQUE |
-| `cron_runs` | `id`, `job_name`, `started_at`, `finished_at`, `status`, `affected_rows`, `message` | CHECK `status IN ('SUCCESS','FAILED')` |
+| `cron_runs` | `id`, `job_name`, `started_at`, `finished_at`, `status`, `affected_rows`, `message` | CHECK `status IN ('RUNNING','SUCCESS','FAILED')`, `finished_at` ustawione dla zakończonych |
 
 **Normalizacja:** stan „zarezerwowany teraz” **nie jest przechowywany**, tylko wyliczany z `reservations`. Wynik kontroli (zaliczona/niezaliczona) też jest wyliczany z `inspection_answers`. Dane modelu (producent, udźwig) siedzą w `forklift_models`, a nie w każdym wózku. Kontrola nie przechowuje `forklift_id` ani `user_id`, bo wynikają z rezerwacji.
 
@@ -321,7 +321,7 @@ erDiagram
   - 1 z badaniem UDT wygasającym za ok. 10 dni (pod demo CRON),
   - 1 z wygasłym badaniem UDT (pod demo reguły R2).
 - Konta: `admin@cargo.local`, `operator@cargo.local`, `operator2@cargo.local`, `nieaktywny@cargo.local`. W seedzie są tylko hashe haseł, a jawne hasła demo podajemy w README.
-- 10 pozycji checklisty (4 krytyczne), rezerwacje przeszłe, bieżące i przyszłe, kilka usterek w różnych statusach z przykładowymi zdjęciami (pliki w `database/seed-uploads/`).
+- 10 pozycji checklisty (4 krytyczne), rezerwacje przeszłe, bieżące i przyszłe, kilka usterek w różnych statusach. Zdjęcia do usterek dojdą w etapie 8 razem z uploadem.
 - Wszystkie dane są fikcyjne, bez prawdziwych danych osobowych.
 
 ---
@@ -371,7 +371,7 @@ cargo/
 │   └── pull_request_template.md
 ├── bin/
 │   ├── console.php                 # punkt wejścia CLI: cron:udt-reminders, cron:complete-reservations, cron:purge-tokens
-│   └── export-db.sh                # pg_dump → database/cargo.sql
+│   └── build-sql.sh                # migracje + seedy → database/cargo.sql
 ├── config/
 │   ├── app.php                     # ustawienia aplikacji czytane z env
 │   ├── routes.php                  # definicje tras
@@ -383,7 +383,7 @@ cargo/
 │   │   └── 003_views_functions_triggers.sql
 │   ├── seeds/
 │   │   └── 001_demo_data.sql
-│   ├── seed-uploads/               # przykładowe zdjęcia usterek do seeda
+│   ├── seed-uploads/               # przykładowe zdjęcia usterek do seeda (etap 8)
 │   └── cargo.sql                  # EKSPORT: schemat + dane demo (import na pustej bazie)
 ├── docker/
 │   ├── nginx/default.conf
@@ -580,11 +580,11 @@ Tych rzeczy nie da się porządnie dorobić na końcu, więc obowiązują od poc
 - [ ] Sprawdzić `git clone` → `cp .env.example .env` → `docker compose up --build` na czystej maszynie
 
 ### Etap 2: Baza danych `[K10]` `[K11]` `[K12]` `[K25]` `[K26]`
-- [ ] `001_extensions.sql`: `CREATE EXTENSION IF NOT EXISTS btree_gist`
-- [ ] `002_schema.sql`: wszystkie tabele z sekcji 5.1 z właściwymi typami (`timestamptz`, `date`, `boolean`, `int`, `varchar(n)`, `text`), PK, FK z ON DELETE z sekcji 5.2, CHECK, UNIQUE, EXCLUDE, indeksy na FK i kolumnach filtrowanych
-- [ ] `003_views_functions_triggers.sql`: widoki, funkcja i triggery z sekcji 5.3
-- [ ] `001_demo_data.sql`: dane z sekcji 5.5, hashe haseł wygenerowane `password_hash()`
-- [ ] `bin/export-db.sh`: `pg_dump --no-owner --no-privileges` do `database/cargo.sql`
+- [x] `001_extensions.sql`: `CREATE EXTENSION IF NOT EXISTS btree_gist`
+- [x] `002_schema.sql`: wszystkie tabele z sekcji 5.1 z właściwymi typami (`timestamptz`, `date`, `boolean`, `int`, `varchar(n)`, `text`), PK, FK z ON DELETE z sekcji 5.2, CHECK, UNIQUE, EXCLUDE, indeksy na FK i kolumnach filtrowanych
+- [x] `003_views_functions_triggers.sql`: widoki, funkcja i triggery z sekcji 5.3
+- [x] `001_demo_data.sql`: dane z sekcji 5.5, hashe bcrypt (`$2y$`, zgodne z `password_verify()`), daty liczone względem chwili importu
+- [x] `bin/build-sql.sh`: składa migracje i seedy w `database/cargo.sql` (czytelny i deterministyczny, w przeciwieństwie do `pg_dump`)
 - [ ] Sprawdzić import `cargo.sql` na pustej bazie (`docker compose down -v && docker compose up`)
 - [ ] Ręcznie przetestować trigger (INSERT usterki krytycznej) i EXCLUDE (kolidujący INSERT kończy się błędem)
 
@@ -728,7 +728,7 @@ Tych rzeczy nie da się porządnie dorobić na końcu, więc obowiązują od poc
 - [ ] Aktualny ERD w Mermaid, zgodny z `002_schema.sql`
 - [ ] Opis przepływu żądania (sekcja 4) i tabela endpointów (sekcja 6)
 - [ ] Przegląd kodu pod kątem martwego kodu, debugowania, duplikatów i nazw
-- [ ] Odświeżyć `database/cargo.sql` (`bin/export-db.sh`)
+- [ ] Odświeżyć `database/cargo.sql` (`bin/build-sql.sh`)
 - [ ] Próba generalna (sekcja 12)
 
 ### 9.15 `.env.example`
@@ -781,7 +781,7 @@ UDT_REMINDER_DAYS=30,7
 | 9 | HTML | `layout/` + `partials/` + `components/form`, semantyka, etykiety | 11 |
 | 10 | PostgreSQL | `Database.php`, konfiguracja z env, wskazanie zapytania z `PgReservationRepository` | 2, 3 |
 | 11 | Złożoność bazy | 15 tabel, CHECK, UNIQUE, EXCLUDE, normalizacja | 2 |
-| 12 | Eksport .sql | `database/cargo.sql` + `bin/export-db.sh` | 2, 16 |
+| 12 | Eksport .sql | `database/cargo.sql` + `bin/build-sql.sh` | 2, 16 |
 | 13 | PHP | PHP 8.4, `strict_types`, typy, `ErrorHandler`, brak ostrzeżeń | 3+ |
 | 14 | JavaScript | Moduły ES, walidacja klienta, oś dostępności, podgląd zdjęć, menu | 6, 8, 11 |
 | 15 | Fetch API | GET dostępności, POST rezerwacji, POST statusu usterki: stany ładowania, sukcesu i błędu | 6, 8 |
