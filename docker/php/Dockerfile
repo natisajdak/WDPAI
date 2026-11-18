@@ -13,7 +13,8 @@ RUN apk add --no-cache libpq supercronic tzdata \
     && apk del .build-deps
 
 COPY --from=composer /usr/bin/composer /usr/bin/composer
-COPY docker/php/php.ini /usr/local/etc/php/conf.d/zz-app.ini
+# Prefiksy liczbowe ustalają kolejność ładowania: nadpisania dev (zz-20) muszą wczytać się po bazie (zz-10).
+COPY docker/php/php.ini /usr/local/etc/php/conf.d/zz-10-app.ini
 COPY docker/php/entrypoint.sh /usr/local/bin/app-entrypoint
 RUN chmod +x /usr/local/bin/app-entrypoint
 
@@ -24,7 +25,7 @@ CMD ["php-fpm"]
 
 # Środowisko developerskie: kod montowany jako bind mount, błędy widoczne, opcache odświeża pliki.
 FROM base AS dev
-COPY docker/php/php.dev.ini /usr/local/etc/php/conf.d/zz-app-dev.ini
+COPY docker/php/php.dev.ini /usr/local/etc/php/conf.d/zz-20-app-dev.ini
 
 # Produkcja: kod i zależności zapieczone w obrazie, bez pakietów developerskich.
 FROM base AS prod
