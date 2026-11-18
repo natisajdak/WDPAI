@@ -560,24 +560,25 @@ Tych rzeczy nie da się porządnie dorobić na końcu, więc obowiązują od poc
 ## 9. To-do: etapy budowy
 
 ### Etap 0: Organizacja
-- [ ] Utworzyć repozytorium GitHub z gałęzią `main` i włączyć branch protection (wymagany PR) `[K7]`
-- [ ] Dodać `.gitignore`, `.editorconfig`, `.env.example`, szkielet `README.md` z sekcjami z wymagań `[K1]` `[K35]`
-- [ ] Dodać szablon PR i ustalić konwencję commitów `[K7]`
+- [x] Utworzyć repozytorium GitHub z gałęzią `main` (TPrzeg/cargo) `[K7]`
+- [ ] Włączyć branch protection dla `main` (wymagany PR) `[K7]`
+- [x] Dodać `.gitignore`, `.editorconfig`, `.env.example`, szkielet `README.md` z sekcjami z wymagań `[K1]` `[K35]`
+- [x] Dodać szablon PR i ustalić konwencję commitów `[K7]`
 - [ ] Podjąć decyzje z sekcji 1 i wpisać podział pracy do README `[K1]`
 
 ### Etap 1: Infrastruktura Docker `[K2]`
-- [ ] `docker/php/Dockerfile`: PHP 8.4-FPM, rozszerzenia `pdo_pgsql` i `fileinfo`, Composer, supercronic, użytkownik bez roota
-- [ ] `docker/nginx/default.conf`: document root `public/`, `try_files … /index.php`, blokada dostępu do plików ukrytych, `client_max_body_size`
-- [ ] `docker-compose.yml` z usługami:
+- [x] `docker/php/Dockerfile`: PHP 8.4-FPM, rozszerzenia `pdo_pgsql` i `fileinfo`, Composer, supercronic, użytkownik bez roota
+- [x] `docker/nginx/default.conf`: document root `public/`, `try_files … /index.php`, blokada dostępu do plików ukrytych, `client_max_body_size`
+- [x] `docker-compose.yml` z usługami:
   - `web` (nginx), port `${WEB_PORT:-8080}:80`,
   - `app` (php-fpm),
   - `db` (postgres:17-alpine), wolumen `pgdata`, healthcheck `pg_isready`, init z `database/cargo.sql` przez `/docker-entrypoint-initdb.d`,
   - `cron` (ten sam obraz, `supercronic /etc/crontab`),
   - `mailpit`, UI na porcie `${MAILPIT_UI_PORT:-8025}`.
-- [ ] `depends_on` z `condition: service_healthy` dla bazy. Komunikacja po nazwach usług (`DB_HOST=db`, `MAIL_HOST=mailpit`)
-- [ ] Wolumen na `storage/uploads`. `entrypoint.sh` uruchamia `composer install`, gdy `vendor/` jest pusty (bind mount w dev zasłania katalog z obrazu)
-- [ ] `.env.example` ze wszystkimi zmiennymi (sekcja 9.15). Opis portów i zmiennych w README
-- [ ] Sprawdzić `git clone` → `cp .env.example .env` → `docker compose up --build` na czystej maszynie
+- [x] `depends_on` z `condition: service_healthy` dla bazy. Komunikacja po nazwach usług (`DB_HOST=db`, `MAIL_HOST=mailpit`)
+- [x] Wolumen na `storage/uploads`. `entrypoint.sh` uruchamia `composer install`, gdy `vendor/` jest pusty (bind mount w dev zasłania katalog z obrazu)
+- [x] `.env.example` ze wszystkimi zmiennymi (sekcja 9.15). Opis portów i zmiennych w README
+- [ ] Sprawdzić `git clone` → `cp .env.example .env` → `docker compose up --build` na czystej maszynie (lokalnie `down -v` + `up --build` działa; zostaje test na innym komputerze)
 
 ### Etap 2: Baza danych `[K10]` `[K11]` `[K12]` `[K25]` `[K26]`
 - [x] `001_extensions.sql`: `CREATE EXTENSION IF NOT EXISTS btree_gist`
@@ -585,8 +586,8 @@ Tych rzeczy nie da się porządnie dorobić na końcu, więc obowiązują od poc
 - [x] `003_views_functions_triggers.sql`: widoki, funkcja i triggery z sekcji 5.3
 - [x] `001_demo_data.sql`: dane z sekcji 5.5, hashe bcrypt (`$2y$`, zgodne z `password_verify()`), daty liczone względem chwili importu
 - [x] `bin/build-sql.sh`: składa migracje i seedy w `database/cargo.sql` (czytelny i deterministyczny, w przeciwieństwie do `pg_dump`)
-- [ ] Sprawdzić import `cargo.sql` na pustej bazie (`docker compose down -v && docker compose up`)
-- [ ] Ręcznie przetestować trigger (INSERT usterki krytycznej) i EXCLUDE (kolidujący INSERT kończy się błędem)
+- [x] Sprawdzić import `cargo.sql` na pustej bazie (`docker compose down -v && docker compose up`)
+- [x] Ręcznie przetestować trigger (INSERT usterki krytycznej) i EXCLUDE (kolidujący INSERT kończy się błędem)
 
 ### Etap 3: Rdzeń backendu `[K3]` `[K4]` `[K5]` `[K13]`
 - [ ] `composer.json` z autoloadem PSR-4, skryptami `test` i `lint` oraz zależnościami
