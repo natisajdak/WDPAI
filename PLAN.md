@@ -481,7 +481,7 @@ cargo/
 │   │   └── LocaleResolver.php      # sesja → profil → Accept-Language → domyślny
 │   ├── View/
 │   │   ├── View.php                # renderer szablonów + layout
-│   │   └── helpers.php             # e(), t(), url(), csrf_field(), asset()
+│   │   └── View.php                # w szablonach $this->e(), t(), url(), asset(), csrfField()
 │   ├── Mail/
 │   │   ├── MailerInterface.php
 │   │   ├── PhpMailerMailer.php
@@ -509,7 +509,7 @@ cargo/
 │   ├── admin/ (forklifts/…, users/…, udt/…, reports/monthly.php, cron-runs/index.php)
 │   ├── emails/ (fault-reported.php, fault-status-changed.php, udt-reminder.php,
 │   │            password-reset.php, account-created.php, reservation-confirmed.php)
-│   └── errors/ (400.php, 401.php, 403.php, 404.php, 405.php, 500.php)
+│   └── errors/error.php           # jeden szablon dla wszystkich statusów (400–500)
 ├── tests/
 │   ├── bootstrap.php
 │   ├── Fake/                       # InMemory*Repository, FakeMailer, FrozenClock
@@ -590,20 +590,20 @@ Tych rzeczy nie da się porządnie dorobić na końcu, więc obowiązują od poc
 - [x] Ręcznie przetestować trigger (INSERT usterki krytycznej) i EXCLUDE (kolidujący INSERT kończy się błędem)
 
 ### Etap 3: Rdzeń backendu `[K3]` `[K4]` `[K5]` `[K13]`
-- [ ] `composer.json` z autoloadem PSR-4, skryptami `test` i `lint` oraz zależnościami
-- [ ] `Env` i `Config`: odczyt zmiennych środowiskowych z wyjątkiem przy brakującej wymaganej zmiennej
-- [ ] `Container`: prosta rejestracja fabryk w `config/services.php`, wstrzykiwanie przez konstruktor
-- [ ] `Database`: PDO z `ERRMODE_EXCEPTION`, `EMULATE_PREPARES=false`, `FETCH_ASSOC`, metoda `transactional(callable)` z rollbackiem przy wyjątku
-- [ ] `Request` (metoda, ścieżka, query, body, JSON, pliki, nagłówki) oraz `Response`, `JsonResponse`, `RedirectResponse`, `FileResponse`
-- [ ] `Router`: rejestracja `get/post`, kompilacja `{param}` i `{param:regex}` do wyrażeń regularnych, dopasowanie metody, 404/405, grupy z middleware i prefiksem (`/admin`, `/api`)
-- [ ] `IdParam::fromString()`: dodatnia liczba całkowita w zakresie `bigint`, w przeciwnym razie `BadRequestException` (400)
-- [ ] Middleware pipeline + `ErrorHandler`: mapowanie wyjątków na HTML lub JSON, logowanie 500 do `storage/logs`, bez stack trace w produkcji
-- [ ] `View`: render szablonu w layoucie, partiale, helpery `e()`, `t()`, `url()`, `asset()`, `csrf_field()`
-- [ ] `Translator` + `LocaleResolver` + `lang/pl.php`, `lang/en.php` (szkielet kluczy) `[K30]`
-- [ ] `Validator` z regułami i komunikatami jako kluczami tłumaczeń `[K28]` `[K30]`
-- [ ] `Session`: `session.use_strict_mode=1`, `use_only_cookies=1`, cookie `HttpOnly`, `SameSite=Lax`, `Secure` w produkcji, własna nazwa `SESSION_NAME` `[K21]`
-- [ ] `Csrf`: token w sesji, pole w formularzach, nagłówek `X-CSRF-Token` dla fetch, porównanie przez `hash_equals` `[K27]`
-- [ ] `SecurityHeadersMiddleware`: `Content-Security-Policy`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy` `[K27]`
+- [x] `composer.json` z autoloadem PSR-4, skryptami `test` i `lint` oraz zależnościami
+- [x] `Env` i `Config`: odczyt zmiennych środowiskowych z wyjątkiem przy brakującej wymaganej zmiennej
+- [x] `Container`: prosta rejestracja fabryk w `config/services.php`, wstrzykiwanie przez konstruktor
+- [x] `Database`: PDO z `ERRMODE_EXCEPTION`, `EMULATE_PREPARES=false`, `FETCH_ASSOC`, metoda `transactional(callable)` z rollbackiem przy wyjątku
+- [x] `Request` (metoda, ścieżka, query, body, JSON, pliki, nagłówki) oraz `Response`, `JsonResponse`, `RedirectResponse` (`FileResponse` dojdzie w etapie 8)
+- [x] `Router`: rejestracja `get/post`, kompilacja `{param}` i `{param:regex}` do wyrażeń regularnych, dopasowanie metody, 404/405, grupy z middleware i prefiksem (`/admin`, `/api`)
+- [x] `IdParam::parse()` (i `Request::idParam()`): dodatnia liczba całkowita w zakresie `bigint`, w przeciwnym razie `BadRequestException` (400)
+- [x] Middleware pipeline + `ErrorMiddleware`/`ErrorResponder`: wyjątki → strona błędu albo JSON, błędy 500 do logu kontenera (stderr), szczegóły tylko przy `APP_DEBUG=1`
+- [x] `View`: render szablonu w layoucie, partiale, w szablonach `$this->e()`, `t()`, `url()`, `asset()`, `csrfField()` (zamiast globalnych funkcji)
+- [x] `Translator` + `LocaleMiddleware` (sesja → Accept-Language → domyślny) + `lang/pl.php`, `lang/en.php` `[K30]`
+- [x] `Validator` z regułami i komunikatami jako kluczami tłumaczeń `[K28]` `[K30]`
+- [x] `Session`: `session.use_strict_mode=1`, `use_only_cookies=1`, cookie `HttpOnly`, `SameSite=Lax`, `Secure` w produkcji, własna nazwa `SESSION_NAME` `[K21]`
+- [x] `Csrf`: token w sesji, pole w formularzach, nagłówek `X-CSRF-Token` dla fetch, porównanie przez `hash_equals` `[K27]`
+- [x] `SecurityHeadersMiddleware`: `Content-Security-Policy`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy` `[K27]`
 
 ### Etap 4: Logowanie, sesja, role, wylogowanie `[K20]` `[K21]` `[K22]` `[K23]` `[K24]`
 - [ ] `AuthService::attempt()`: wyszukanie użytkownika po `lower(email)`, `password_verify` (przy nieistniejącym mailu weryfikacja z fikcyjnym hashem, żeby czas odpowiedzi był podobny), sprawdzenie `is_active`, `password_needs_rehash`
@@ -686,14 +686,15 @@ Tych rzeczy nie da się porządnie dorobić na końcu, więc obowiązują od poc
 - [ ] Przełącznik języka zapisuje wybór w sesji i w `users.locale`. Atrybut `<html lang>` się zmienia
 
 ### Etap 13: Testy jednostkowe `[K31]`
-- [ ] `RouterTest`: trasa statyczna, path param, regex, 404, 405
+- [x] `RouterTest`: trasa statyczna, path param, regex, 404, 405
 - [ ] `TimeRangeTest`: nakładanie się przedziałów (styk końca z początkiem nie jest kolizją), nieprawidłowy przedział
 - [ ] `ReservationServiceTest`: sukces, konflikt, wózek wyłączony, wygasły UDT, rezerwacja za długa lub w przeszłości (repozytoria in-memory + `FrozenClock`)
 - [ ] `FaultServiceTest`: dozwolone i niedozwolone przejścia statusów
 - [ ] `AuthServiceTest`: poprawne hasło, błędne hasło, konto nieaktywne
 - [ ] `UploadPolicyTest`: poprawny JPG, plik PHP podpisany jako `.jpg`, za duży plik, złe rozszerzenie
-- [ ] `ValidatorTest`, `AuthorizationTest`, `CsrfTest`, `TranslatorTest`, `UdtReminderJobTest` (idempotencja)
-- [ ] `composer test` → `docker compose exec app composer test`. Polecenie w README
+- [x] `ValidatorTest`, `CsrfTest`, `CsrfMiddlewareTest`, `LocaleMiddlewareTest`, `TranslatorTest` (z kontrolą identycznych kluczy PL/EN), `IdParamTest`, `SafeRedirectTest`, `ContainerTest`
+- [ ] `AuthorizationTest`, `UdtReminderJobTest` (idempotencja)
+- [x] `composer test` → `docker compose exec app composer test`. Polecenie w README
 
 ### Etap 14: Bezpieczeństwo, Security Bingo `[K27]`
 - [ ] Odhaczyć każde pole karty od prowadzącego. Typowe pola i nasz dowód:

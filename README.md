@@ -30,7 +30,41 @@ Główne funkcje:
 
 ## Architektura
 
-*(w przygotowaniu)*
+Backend jest napisany obiektowo w PHP 8.4 bez frameworka. Router, kontener zależności, sesje i widoki są częścią projektu.
+
+```mermaid
+flowchart TD
+    B[Przeglądarka: HTML + Fetch] --> N[nginx: public/]
+    N --> I[public/index.php]
+    I --> K[Kernel]
+    K --> GM["Middleware globalne<br/>SecurityHeaders → Error → Session → Locale → Csrf"]
+    GM --> R[RouteDispatcher + Router]
+    R --> RM["Middleware trasy<br/>(Auth, Role – od etapu 4)"]
+    RM --> C[Controller]
+    C --> S[Service: logika i reguły biznesowe]
+    S --> RI[RepositoryInterface]
+    RI -.implementuje.- PR[Pg*Repository: SQL z parametrami]
+    PR --> D[Database: PDO + transakcje]
+    D --> PG[(PostgreSQL)]
+    C --> V[View: templates/]
+```
+
+| Warstwa | Katalog | Odpowiedzialność |
+|---|---|---|
+| Punkt wejścia | `public/index.php`, `config/bootstrap.php` | Ładuje konfigurację, buduje kontener, uruchamia `Kernel` |
+| HTTP | `src/Http` | `Request`/`Response`, router, middleware, mapowanie wyjątków na odpowiedzi |
+| Kontrolery | `src/Controller` | Czytają żądanie, wywołują serwis, zwracają widok albo JSON. Bez SQL i bez HTML |
+| Serwisy | `src/Service` | Logika biznesowa i transakcje *(od etapu 4)* |
+| Repozytoria | `src/Repository` | Interfejsy oraz implementacje dla PostgreSQL *(od etapu 4)* |
+| Baza | `src/Database` | Zapytania wyłącznie z parametrami, transakcje |
+| Widoki | `src/View`, `templates/` | Szablony z layoutem i partialami. Wyjście kodowane przez `$this->e()` |
+| Bezpieczeństwo | `src/Security` | Sesja, CSRF, Content Security Policy |
+| Tłumaczenia | `src/I18n`, `lang/` | Katalogi PL/EN, wybór języka |
+| Walidacja | `src/Validation` | Reguły i przetłumaczone komunikaty błędów |
+
+**Kierunek zależności:** kontroler → serwis → interfejs repozytorium ← implementacja PostgreSQL. Klasy dostają zależności przez konstruktor. `Container` tworzy je automatycznie, a usługi wymagające konfiguracji są zdefiniowane w [config/services.php](config/services.php).
+
+**Obsługa błędów:** każdy wyjątek trafia do `ErrorMiddleware`. Użytkownik dostaje stronę błędu w swoim języku, a dla ścieżek `/api/*` JSON `{"error": {"code", "message"}}`. Błędy 500 są logowane w kontenerze `app` (`docker compose logs app`). Szczegóły techniczne są widoczne tylko przy `APP_DEBUG=1`. Ostrzeżenia PHP są zamieniane na wyjątki, więc nie mogą przejść niezauważone.
 
 ## Diagram ERD bazy danych
 
@@ -206,7 +240,20 @@ erDiagram
 
 ## Routing / endpointy
 
-*(w przygotowaniu)*
+Trasy są zdefiniowane w [config/routes.php](config/routes.php). Router dopasowuje metodę HTTP i wzorzec ścieżki:
+
+- `{name}`: dowolny segment, np. `/forklifts/{id}`,
+- `{name:regex}`: segment pasujący do wyrażenia, np. `/lang/{locale:pl|en}`.
+
+Nieistniejąca ścieżka zwraca **404**. Istniejąca ścieżka z inną metodą zwraca **405** z nagłówkiem `Allow`. Identyfikator, który nie jest dodatnią liczbą całkowitą (`Request::idParam()`), zwraca **400**. Każde żądanie inne niż GET musi zawierać token CSRF, w przeciwnym razie kończy się **403**.
+
+| Metoda | Ścieżka | Kontroler | Opis |
+|---|---|---|---|
+| GET | `/` | `HomeController::index` | Strona startowa |
+| GET | `/health` | `HealthController::show` | Stan aplikacji i połączenia z bazą (JSON, 200 albo 503) |
+| GET | `/lang/{locale:pl\|en}` | `LocaleController::switch` | Zmiana języka i powrót na poprzednią stronę (tylko w obrębie aplikacji) |
+
+*Kolejne trasy będą dochodzić w następnych etapach (plan: [PLAN.md, sekcja 6](PLAN.md)).*
 
 ## Uruchomienie przez Docker
 
@@ -322,7 +369,29 @@ Daty są liczone względem chwili importu, więc scenariusze demo działają nie
 
 ## Testy
 
-*(w przygotowaniu)*
+Testy jednostkowe (PHPUnit 12) są w katalogu [tests/Unit](tests/Unit). Są izolowane: nie korzystają z bazy ani z sesji PHP, tylko z atrap z [tests/Fake](tests/Fake).
+
+Uruchomienie testów (przy działających kontenerach):
+
+```bash
+docker compose exec app composer test
+```
+
+Sprawdzenie składni wszystkich plików PHP:
+
+```bash
+docker compose exec app composer lint
+```
+
+| Obszar | Co sprawdzają testy |
+|---|---|
+| `RouterTest` | Trasa statyczna, parametr ścieżki, regex, 404, 405 z nagłówkiem `Allow`, grupy |
+| `IdParamTest` | Poprawne id oraz 0, liczby ujemne, litery, zera wiodące, wartości poza zakresem `bigint` (400) |
+| `CsrfTest`, `CsrfMiddlewareTest` | Token z formularza i z nagłówka, brak tokenu, zły token, regeneracja |
+| `SafeRedirectTest` | Ochrona przed open redirect |
+| `ValidatorTest` | Reguły, przycinanie danych, komunikaty w PL i EN, wyjątek 422 dla API |
+| `TranslatorTest`, `LocaleMiddlewareTest` | Tłumaczenia, parametry, identyczne klucze PL/EN, wybór języka |
+| `ContainerTest` | Automatyczne tworzenie zależności i czytelne błędy konfiguracji |
 
 ## Raport WCAG
 
