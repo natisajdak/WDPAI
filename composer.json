@@ -22,5 +22,12 @@
   "config": {
     "sort-packages": true,
     "optimize-autoloader": true
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^12.0"
+  },
+  "scripts": {
+    "test": "phpunit",
+    "lint": "find src config public lang templates tests bin -name '*.php' -print0 | xargs -0 -n1 php -l"
   }
 }
