@@ -14,7 +14,7 @@ use Throwable;
  * Cienka warstwa nad PDO: wyłącznie zapytania z parametrami i transakcje.
  * Repozytoria nie dostają surowego PDO, więc nie da się w nich „skleić” SQL z danymi użytkownika.
  */
-final class Database
+final class Database implements TransactionRunner
 {
     private ?PDO $pdo = null;
 
