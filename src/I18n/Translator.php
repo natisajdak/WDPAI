@@ -47,6 +47,25 @@ final class Translator
         return $this->locale;
     }
 
+    /**
+     * Wykonuje operację w innym języku i przywraca bieżący, np. e-mail w języku odbiorcy.
+     *
+     * @template T
+     * @param callable(): T $operation
+     * @return T
+     */
+    public function withLocale(string $locale, callable $operation): mixed
+    {
+        $previous = $this->locale;
+        $this->setLocale($locale);
+
+        try {
+            return $operation();
+        } finally {
+            $this->locale = $previous;
+        }
+    }
+
     public function defaultLocale(): string
     {
         return $this->defaultLocale;

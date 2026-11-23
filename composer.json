@@ -7,7 +7,8 @@
     "php": "^8.4",
     "ext-fileinfo": "*",
     "ext-pdo": "*",
-    "ext-pdo_pgsql": "*"
+    "ext-pdo_pgsql": "*",
+    "phpmailer/phpmailer": "^7.1"
   },
   "autoload": {
     "psr-4": {
