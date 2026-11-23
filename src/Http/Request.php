@@ -92,6 +92,14 @@ final class Request
     }
 
     /**
+     * Query string razem ze znakiem "?" albo pusty tekst, np. do zapamiętania adresu przed logowaniem.
+     */
+    public function queryString(): string
+    {
+        return $this->query === [] ? '' : '?' . http_build_query($this->query);
+    }
+
+    /**
      * Pole formularza albo pole z ciała JSON.
      */
     public function input(string $key, mixed $default = null): mixed

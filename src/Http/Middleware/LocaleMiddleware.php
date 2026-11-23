@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Domain\Entity\User;
 use App\Http\Request;
 use App\Http\RequestHandlerInterface;
 use App\Http\Response;
@@ -11,7 +12,8 @@ use App\I18n\Translator;
 use App\Security\SessionInterface;
 
 /**
- * Ustala język interfejsu: wybór zapisany w sesji, potem nagłówek Accept-Language, na końcu język domyślny.
+ * Ustala język interfejsu: wybór zapisany w sesji, potem język z profilu zalogowanego użytkownika,
+ * potem nagłówek Accept-Language, na końcu język domyślny.
  */
 final class LocaleMiddleware implements MiddlewareInterface
 {
@@ -36,6 +38,12 @@ final class LocaleMiddleware implements MiddlewareInterface
 
         if (is_string($chosen) && $this->translator->supports($chosen)) {
             return $chosen;
+        }
+
+        $user = $request->attribute(CurrentUserMiddleware::ATTRIBUTE);
+
+        if ($user instanceof User && $this->translator->supports($user->locale)) {
+            return $user->locale;
         }
 
         return $this->fromAcceptLanguage($request->header('accept-language') ?? '') ?? $this->translator->defaultLocale();
