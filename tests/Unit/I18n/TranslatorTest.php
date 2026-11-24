@@ -19,11 +19,11 @@ final class TranslatorTest extends TestCase
 
     public function testTranslatesInCurrentLocale(): void
     {
-        self::assertSame('Strona główna', $this->translator->trans('nav.home'));
+        self::assertSame('Pulpit', $this->translator->trans('nav.dashboard'));
 
         $this->translator->setLocale('en');
 
-        self::assertSame('Home', $this->translator->trans('nav.home'));
+        self::assertSame('Dashboard', $this->translator->trans('nav.dashboard'));
     }
 
     public function testReplacesPlaceholders(): void
