@@ -606,17 +606,17 @@ Tych rzeczy nie da się porządnie dorobić na końcu, więc obowiązują od poc
 - [x] `SecurityHeadersMiddleware`: `Content-Security-Policy`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy` `[K27]`
 
 ### Etap 4: Logowanie, sesja, role, wylogowanie `[K20]` `[K21]` `[K22]` `[K23]` `[K24]`
-- [ ] `AuthService::attempt()`: wyszukanie użytkownika po `lower(email)`, `password_verify` (przy nieistniejącym mailu weryfikacja z fikcyjnym hashem, żeby czas odpowiedzi był podobny), sprawdzenie `is_active`, `password_needs_rehash`
-- [ ] Bezpieczny komunikat błędu „Nieprawidłowy e-mail lub hasło”, bez zdradzania, czy konto istnieje
-- [ ] `LoginThrottle`: np. 5 prób na 15 minut na e-mail i IP
-- [ ] Po sukcesie: `session_regenerate_id(true)`, w sesji tylko `user_id`, aktualizacja `last_login_at`, przekierowanie do `intended` (tylko ścieżka lokalna, bez open redirect) albo do `/dashboard`
-- [ ] `AuthMiddleware`: przy każdym żądaniu ładuje użytkownika z bazy (rola i `is_active` brane z bazy, nie z klienta). Brak sesji: 302 do `/login` albo 401 dla API
-- [ ] `RoleMiddleware`: 403 przy złej roli. `Authorization::can()` dla zasobów należących do użytkownika
-- [ ] Wylogowanie (`POST /logout`): `$_SESSION = []`, `session_destroy()`, wygaszenie cookie (`setcookie` z datą w przeszłości), przekierowanie
-- [ ] `Cache-Control: no-store` na stronach chronionych, żeby przycisk Wstecz po wylogowaniu nie pokazywał treści
-- [ ] Reset hasła: token `random_bytes(32)`, w bazie tylko jego SHA-256, ważność 60 minut, jednorazowy, ta sama odpowiedź niezależnie od tego, czy e-mail istnieje
-- [ ] Widoki: `login`, `forgot-password`, `reset-password`
-- [ ] Sprawdzenie ręczne: `curl` na `/admin/users` jako operator daje 403, bez sesji daje 302/401
+- [x] `AuthService::attempt()`: wyszukanie użytkownika po `lower(email)`, `password_verify` (przy nieistniejącym mailu weryfikacja z fikcyjnym hashem, żeby czas odpowiedzi był podobny), sprawdzenie `is_active`, `password_needs_rehash`
+- [x] Bezpieczny komunikat błędu „Nieprawidłowy e-mail lub hasło”, bez zdradzania, czy konto istnieje
+- [x] Limit prób logowania w `AuthService` + tabela `login_attempts` (migracja 004): 5 nieudanych prób na 15 minut dla pary e-mail + IP, potem 429
+- [x] Po sukcesie: `session_regenerate_id(true)`, w sesji tylko `user_id`, aktualizacja `last_login_at`, przekierowanie do `intended` (tylko ścieżka lokalna, bez open redirect) albo do `/dashboard`
+- [x] `AuthMiddleware`: przy każdym żądaniu ładuje użytkownika z bazy (rola i `is_active` brane z bazy, nie z klienta). Brak sesji: 302 do `/login` albo 401 dla API
+- [x] `RoleMiddleware`: 403 przy złej roli. `Authorization::can()` z enumem `Ability` (sprawdzanie właściciela zasobu dojdzie w etapie 6)
+- [x] Wylogowanie (`POST /logout`): `$_SESSION = []`, `session_destroy()`, wygaszenie cookie (`setcookie` z datą w przeszłości), przekierowanie
+- [x] `Cache-Control: no-store` na stronach chronionych, żeby przycisk Wstecz po wylogowaniu nie pokazywał treści
+- [x] Reset hasła: token `random_bytes(32)`, w bazie tylko jego SHA-256, ważność 60 minut, jednorazowy, ta sama odpowiedź niezależnie od tego, czy e-mail istnieje
+- [x] Widoki: `login`, `forgot-password`, `reset-password`
+- [x] Sprawdzenie ręczne: `curl` na `/admin/users` jako operator daje 403, bez sesji daje 302/401
 
 ### Etap 5: Wózki `[K8]` `[K4]` `[K26]`
 - [ ] Encje `Forklift`, `ForkliftModel`, `Warehouse` i enumy `ForkliftStatus`, `FuelType`
@@ -651,7 +651,7 @@ Tych rzeczy nie da się porządnie dorobić na końcu, więc obowiązują od poc
 - [ ] `FaultService::report()` / `changeStatus()` z maszyną stanów R10 i transakcją
 - [ ] Formularz zgłoszenia: `enctype="multipart/form-data"`, `accept="image/*"`, podgląd miniatur w JS (`photo-preview.js`), walidacja rozmiaru po stronie klienta
 - [ ] Lista usterek dla admina z filtrami. Zmiana statusu przez `fault-status.js` (Fetch POST) z aktualizacją wiersza bez przeładowania
-- [ ] `PhpMailerMailer`: konfiguracja SMTP z env, `try/catch` na `Exception`, logowanie błędu bez przerywania głównej operacji, szablony e-maili w PL/EN zależnie od `users.locale`
+- [x] `PhpMailerMailer`: konfiguracja SMTP z env, `try/catch` na `Exception`, logowanie błędu bez przerywania głównej operacji, szablony e-maili w PL/EN zależnie od `users.locale` (zrobione w etapie 4 razem z resetem hasła)
 - [ ] E-maile: zgłoszona usterka (do adminów), zmiana statusu (do zgłaszającego)
 
 ### Etap 9: Panel admina `[K22]` `[K23]` `[K25]`

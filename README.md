@@ -37,9 +37,9 @@ flowchart TD
     B[Przeglądarka: HTML + Fetch] --> N[nginx: public/]
     N --> I[public/index.php]
     I --> K[Kernel]
-    K --> GM["Middleware globalne<br/>SecurityHeaders → Error → Session → Locale → Csrf"]
+    K --> GM["Middleware globalne<br/>SecurityHeaders → Error → Session → CurrentUser → Locale → Csrf"]
     GM --> R[RouteDispatcher + Router]
-    R --> RM["Middleware trasy<br/>(Auth, Role – od etapu 4)"]
+    R --> RM["Middleware trasy<br/>Auth, Guest, Role:ADMIN"]
     RM --> C[Controller]
     C --> S[Service: logika i reguły biznesowe]
     S --> RI[RepositoryInterface]
@@ -54,8 +54,8 @@ flowchart TD
 | Punkt wejścia | `public/index.php`, `config/bootstrap.php` | Ładuje konfigurację, buduje kontener, uruchamia `Kernel` |
 | HTTP | `src/Http` | `Request`/`Response`, router, middleware, mapowanie wyjątków na odpowiedzi |
 | Kontrolery | `src/Controller` | Czytają żądanie, wywołują serwis, zwracają widok albo JSON. Bez SQL i bez HTML |
-| Serwisy | `src/Service` | Logika biznesowa i transakcje *(od etapu 4)* |
-| Repozytoria | `src/Repository` | Interfejsy oraz implementacje dla PostgreSQL *(od etapu 4)* |
+| Serwisy | `src/Service` | Logika biznesowa i transakcje |
+| Repozytoria | `src/Repository` | Interfejsy oraz implementacje dla PostgreSQL |
 | Baza | `src/Database` | Zapytania wyłącznie z parametrami, transakcje |
 | Widoki | `src/View`, `templates/` | Szablony z layoutem i partialami. Wyjście kodowane przez `$this->e()` |
 | Bezpieczeństwo | `src/Security` | Sesja, CSRF, Content Security Policy |
@@ -207,7 +207,16 @@ erDiagram
         int affected_rows
         text message
     }
+    LOGIN_ATTEMPTS {
+        bigint id PK
+        varchar email "bez FK: także nieistniejące konta"
+        inet ip_address
+        boolean succeeded
+        timestamptz attempted_at
+    }
 ```
+
+`CRON_RUNS` i `LOGIN_ATTEMPTS` nie mają relacji z innymi tabelami. Są to logi techniczne: wpis o próbie logowania musi powstać także dla adresu, który nie należy do żadnego konta.
 
 ### Zachowanie kluczy obcych przy usuwaniu
 
@@ -247,11 +256,20 @@ Trasy są zdefiniowane w [config/routes.php](config/routes.php). Router dopasowu
 
 Nieistniejąca ścieżka zwraca **404**. Istniejąca ścieżka z inną metodą zwraca **405** z nagłówkiem `Allow`. Identyfikator, który nie jest dodatnią liczbą całkowitą (`Request::idParam()`), zwraca **400**. Każde żądanie inne niż GET musi zawierać token CSRF, w przeciwnym razie kończy się **403**.
 
-| Metoda | Ścieżka | Kontroler | Opis |
-|---|---|---|---|
-| GET | `/` | `HomeController::index` | Strona startowa |
-| GET | `/health` | `HealthController::show` | Stan aplikacji i połączenia z bazą (JSON, 200 albo 503) |
-| GET | `/lang/{locale:pl\|en}` | `LocaleController::switch` | Zmiana języka i powrót na poprzednią stronę (tylko w obrębie aplikacji) |
+| Metoda | Ścieżka | Kontroler | Dostęp | Opis |
+|---|---|---|---|---|
+| GET | `/` | `HomeController::index` | wszyscy | Przekierowanie na pulpit albo do logowania |
+| GET | `/health` | `HealthController::show` | wszyscy | Stan aplikacji i połączenia z bazą (JSON, 200 albo 503) |
+| GET | `/lang/{locale:pl\|en}` | `LocaleController::switch` | wszyscy | Zmiana języka (u zalogowanego zapisywana w profilu) i powrót na poprzednią stronę |
+| GET, POST | `/login` | `AuthController` | gość | Logowanie. Limit 5 nieudanych prób na 15 min (429) |
+| GET, POST | `/forgot-password` | `PasswordResetController` | gość | Wysłanie linku do resetu hasła (zawsze ta sama odpowiedź) |
+| GET, POST | `/reset-password?token=…` | `PasswordResetController` | gość | Ustawienie nowego hasła jednorazowym tokenem |
+| POST | `/logout` | `AuthController::logout` | zalogowany | Wylogowanie (wymaga CSRF) |
+| GET | `/dashboard` | `DashboardController::index` | zalogowany | Pulpit |
+| GET | `/api/me` | `Api\MeController::show` | zalogowany | Dane zalogowanego użytkownika (JSON). Bez sesji zwraca 401 |
+| GET | `/admin/users` | `Admin\UserAdminController::index` | ADMIN | Lista kont. Operator dostaje 403 |
+
+**Kontrola dostępu:** gość wchodzący na stronę chronioną jest przekierowany do `/login`, a po zalogowaniu wraca pod zapamiętany adres. Na ścieżkach `/api/*` dostaje 401. Zalogowany użytkownik bez wymaganej roli dostaje 403 niezależnie od tego, czy link był widoczny w menu.
 
 *Kolejne trasy będą dochodzić w następnych etapach (plan: [PLAN.md, sekcja 6](PLAN.md)).*
 
@@ -332,7 +350,7 @@ Plik jest generowany przez skrypt z migracji (`database/migrations`) i seedów (
 bin/build-sql.sh
 ```
 
-Ponowny import od zera (usuwa dane i uploady):
+Po pobraniu zmian z nową migracją trzeba odtworzyć bazę, bo skrypt importu działa tylko na pustym wolumenie. Ponowny import od zera (usuwa dane i uploady):
 
 ```bash
 docker compose down -v && docker compose up --build
@@ -392,6 +410,21 @@ docker compose exec app composer lint
 | `ValidatorTest` | Reguły, przycinanie danych, komunikaty w PL i EN, wyjątek 422 dla API |
 | `TranslatorTest`, `LocaleMiddlewareTest` | Tłumaczenia, parametry, identyczne klucze PL/EN, wybór języka |
 | `ContainerTest` | Automatyczne tworzenie zależności i czytelne błędy konfiguracji |
+| `AuthServiceTest` | Poprawne logowanie, złe hasło, nieznany e-mail, konto nieaktywne, konto bez hasła, blokada po 5 próbach, regeneracja sesji i tokenu CSRF, utrata dostępu po dezaktywacji |
+| `PasswordResetServiceTest` | Link w języku odbiorcy, w bazie tylko hash tokenu, token jednorazowy i wygasający, nowy link unieważnia stary, błąd SMTP nie ujawnia informacji |
+| `AuthorizationTest`, `AccessMiddlewareTest` | Uprawnienia ról, 302 lub 401 dla gościa, 403 dla złej roli, `Cache-Control: no-store` |
+
+## Logowanie, sesja i role
+
+| Mechanizm | Implementacja |
+|---|---|
+| Hasła | `password_hash`/`password_verify` (bcrypt) w [PasswordHasher](src/Security/PasswordHasher.php). Przy nieistniejącym koncie sprawdzany jest hash zastępczy, więc czas odpowiedzi nie zdradza, które e-maile są w bazie |
+| Komunikat błędu | Zły e-mail, złe hasło i konto nieaktywne dają ten sam komunikat „Nieprawidłowy e-mail lub hasło” |
+| Limit prób | 5 nieudanych prób na 15 minut dla pary e-mail + IP (tabela `login_attempts`), potem odpowiedź 429 |
+| Sesja | Po zalogowaniu `session_regenerate_id(true)` i nowy token CSRF. W sesji jest tylko `user_id`. Rola i status konta są czytane z bazy przy każdym żądaniu. Cookie `HttpOnly`, `SameSite=Lax`, `Secure` na produkcji. Sesja wygasa po `SESSION_LIFETIME` sekundach bezczynności |
+| Role | `OPERATOR` i `ADMIN` w tabeli `roles`. Trasy `/admin/*` chroni `RoleMiddleware:ADMIN`, a widoki pytają `Authorization` o uprawnienia (`Ability`) |
+| Wylogowanie | `POST /logout` z tokenem CSRF: czyści dane sesji, usuwa ją na serwerze i wygasza cookie. Strony chronione mają `Cache-Control: no-store`, więc przycisk Wstecz nie pokazuje ich z pamięci przeglądarki |
+| Reset hasła | Jednorazowy token `random_bytes(32)` ważny 60 minut. W bazie jest tylko jego SHA-256. Nowy link unieważnia poprzednie |
 
 ## Raport WCAG
 
@@ -403,7 +436,19 @@ docker compose exec app composer lint
 
 ## Zadanie CRON i wysyłka e-mail
 
-*(w przygotowaniu)*
+### E-mail
+
+Wiadomości wysyła [PhpMailerMailer](src/Mail/PhpMailerMailer.php) przez SMTP. Dane serwera pochodzą ze zmiennych `MAIL_*`. Treść powstaje z szablonów [templates/emails](templates/emails) w języku odbiorcy (`users.locale`) i ma wersję HTML oraz tekstową. Błąd SMTP jest logowany i nie przerywa operacji użytkownika.
+
+Lokalnie wszystkie wiadomości trafiają do Mailpit: http://localhost:8025. Żeby to sprawdzić, wejdź na http://localhost:8080/forgot-password, podaj `operator2@cargo.local` i otwórz wiadomość w Mailpit (będzie po angielsku, zgodnie z profilem).
+
+| Wiadomość | Kiedy |
+|---|---|
+| Link do ustawienia nowego hasła | Formularz „Nie pamiętasz hasła?” |
+
+### CRON
+
+*(w przygotowaniu: przypomnienia o badaniach UDT, zamykanie zakończonych rezerwacji, czyszczenie wygasłych tokenów)*
 
 ## Deploy
 
