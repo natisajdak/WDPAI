@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Domain\Entity\User;
 use App\Http\Exception\NotFoundException;
+use App\Http\Middleware\CurrentUserMiddleware;
 use App\Http\Middleware\LocaleMiddleware;
 use App\Http\RedirectResponse;
 use App\Http\Request;
@@ -12,12 +14,14 @@ use App\Http\Response;
 use App\Http\SafeRedirect;
 use App\I18n\Translator;
 use App\Security\SessionInterface;
+use App\Service\UserService;
 
 final class LocaleController
 {
     public function __construct(
         private readonly Translator $translator,
         private readonly SessionInterface $session,
+        private readonly UserService $users,
     ) {
     }
 
@@ -34,6 +38,13 @@ final class LocaleController
         }
 
         $this->session->set(LocaleMiddleware::SESSION_KEY, $locale);
+
+        // Zalogowanemu zapamiętujemy wybór w profilu: e-maile też będzie dostawać w tym języku.
+        $user = $request->attribute(CurrentUserMiddleware::ATTRIBUTE);
+
+        if ($user instanceof User) {
+            $this->users->changeLocale($user, $locale);
+        }
 
         return new RedirectResponse(SafeRedirect::back($request), 302);
     }

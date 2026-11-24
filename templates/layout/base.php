@@ -2,7 +2,7 @@
 /**
  * @var \App\View\View $this
  * @var string $content
- * @var string|null $title
+ * @var string|null $titleKey klucz tłumaczenia tytułu strony
  */
 ?>
 <!doctype html>
@@ -11,7 +11,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="<?= $this->csrfToken() ?>">
-    <title><?= isset($title) ? $this->e($title) . ' · ' : '' ?><?= $this->t('app.name') ?></title>
+    <title><?= isset($titleKey) ? $this->t($titleKey) . ' · ' : '' ?><?= $this->t('app.name') ?></title>
 </head>
 <body>
     <a class="skip-link" href="#main"><?= $this->t('nav.skip_to_content') ?></a>
@@ -19,6 +19,7 @@
     <?= $this->partial('partials/header') ?>
 
     <main id="main" tabindex="-1">
+        <?= $this->partial('partials/flash') ?>
         <?= $content ?>
     </main>
 

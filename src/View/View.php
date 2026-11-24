@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace App\View;
 
+use App\Domain\Entity\User;
 use App\I18n\Translator;
+use App\Security\Ability;
+use App\Security\Authorization;
 use App\Security\ContentSecurityPolicy;
 use App\Security\Csrf;
+use App\Security\SessionInterface;
+use DateTimeInterface;
 use InvalidArgumentException;
 use RuntimeException;
 use Throwable;
@@ -28,6 +33,8 @@ final class View
         private readonly Translator $translator,
         private readonly Csrf $csrf,
         private readonly ContentSecurityPolicy $csp,
+        private readonly Authorization $authorization,
+        private readonly SessionInterface $session,
     ) {
     }
 
@@ -102,6 +109,52 @@ final class View
         $version = is_file($file) ? (string) filemtime($file) : '0';
 
         return $this->e('/assets/' . ltrim($path, '/') . '?v=' . $version);
+    }
+
+    /**
+     * Komunikaty ustawione przed przekierowaniem (wzorzec POST → redirect → GET).
+     * Pobierane dopiero przy renderowaniu strony, więc przekierowanie po drodze ich nie gubi.
+     *
+     * @return array<string, string> typ (success|error) => treść
+     */
+    public function flashes(): array
+    {
+        $messages = [];
+
+        foreach (['success', 'error'] as $type) {
+            $message = $this->session->pullFlash($type);
+
+            if (is_string($message)) {
+                $messages[$type] = $message;
+            }
+        }
+
+        return $messages;
+    }
+
+    /**
+     * Data i godzina w formacie bieżącego języka (lang/*.php: format.datetime).
+     */
+    public function dateTime(?DateTimeInterface $value): string
+    {
+        return $value === null ? '–' : $this->e($value->format($this->translator->trans('format.datetime')));
+    }
+
+    public function currentUser(): ?User
+    {
+        $user = $this->shared['currentUser'] ?? null;
+
+        return $user instanceof User ? $user : null;
+    }
+
+    /**
+     * Tylko do decyzji, co pokazać w interfejsie. Właściwą kontrolę dostępu robi backend.
+     */
+    public function can(Ability $ability): bool
+    {
+        $user = $this->currentUser();
+
+        return $user !== null && $this->authorization->can($user, $ability);
     }
 
     public function csrfToken(): string

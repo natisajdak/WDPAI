@@ -41,7 +41,7 @@ final class ErrorResponder
         $titleKey = in_array($status, self::KNOWN_STATUSES, true) ? sprintf('error.%d.title', $status) : 'error.generic.title';
 
         $html = $this->view->render('errors/error', [
-            'title' => $this->translator->trans($titleKey),
+            'titleKey' => $titleKey,
             'status' => $status,
             'message' => $message,
             'details' => $this->debug && $status >= 500 ? sprintf("%s: %s\n\n%s", $e::class, $e->getMessage(), $e->getTraceAsString()) : null,

@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Domain\Entity\User;
+use App\Http\Exception\UnauthorizedException;
 use App\Http\JsonResponse;
+use App\Http\Middleware\CurrentUserMiddleware;
 use App\Http\RedirectResponse;
+use App\Http\Request;
 use App\Http\Response;
 use App\View\View;
 
@@ -34,5 +38,15 @@ abstract class AbstractController
     protected function redirect(string $location): RedirectResponse
     {
         return new RedirectResponse($location);
+    }
+
+    /**
+     * Zalogowany użytkownik ustawiony przez CurrentUserMiddleware. Na trasach z AuthMiddleware zawsze istnieje.
+     */
+    protected function user(Request $request): User
+    {
+        $user = $request->attribute(CurrentUserMiddleware::ATTRIBUTE);
+
+        return $user instanceof User ? $user : throw new UnauthorizedException();
     }
 }
