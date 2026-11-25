@@ -23,12 +23,18 @@ use App\Kernel;
 use App\Mail\MailComposer;
 use App\Mail\MailerInterface;
 use App\Mail\PhpMailerMailer;
+use App\Repository\Contract\ForkliftRepositoryInterface;
 use App\Repository\Contract\LoginAttemptRepositoryInterface;
 use App\Repository\Contract\PasswordResetTokenRepositoryInterface;
+use App\Repository\Contract\TechnicalInspectionRepositoryInterface;
 use App\Repository\Contract\UserRepositoryInterface;
+use App\Repository\Contract\WarehouseRepositoryInterface;
+use App\Repository\Pg\PgForkliftRepository;
 use App\Repository\Pg\PgLoginAttemptRepository;
 use App\Repository\Pg\PgPasswordResetTokenRepository;
+use App\Repository\Pg\PgTechnicalInspectionRepository;
 use App\Repository\Pg\PgUserRepository;
+use App\Repository\Pg\PgWarehouseRepository;
 use App\Security\Authorization;
 use App\Security\ContentSecurityPolicy;
 use App\Security\Csrf;
@@ -46,6 +52,9 @@ return static function (Container $container, Config $config): void {
     $container->bind(TransactionRunner::class, Database::class);
     $container->bind(UserRepositoryInterface::class, PgUserRepository::class);
     $container->bind(LoginAttemptRepositoryInterface::class, PgLoginAttemptRepository::class);
+    $container->bind(ForkliftRepositoryInterface::class, PgForkliftRepository::class);
+    $container->bind(WarehouseRepositoryInterface::class, PgWarehouseRepository::class);
+    $container->bind(TechnicalInspectionRepositoryInterface::class, PgTechnicalInspectionRepository::class);
     $container->bind(PasswordResetTokenRepositoryInterface::class, PgPasswordResetTokenRepository::class);
 
     // Infrastruktura z konfiguracją ze zmiennych środowiskowych
