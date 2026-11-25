@@ -6,6 +6,7 @@ use App\Controller\Admin\UserAdminController;
 use App\Controller\Api\MeController;
 use App\Controller\AuthController;
 use App\Controller\DashboardController;
+use App\Controller\ForkliftController;
 use App\Controller\HealthController;
 use App\Controller\HomeController;
 use App\Controller\LocaleController;
@@ -34,6 +35,8 @@ return static function (Router $router): void {
     $router->group('', [AuthMiddleware::class], static function (Router $auth): void {
         $auth->post('/logout', [AuthController::class, 'logout']);
         $auth->get('/dashboard', [DashboardController::class, 'index']);
+        $auth->get('/forklifts', [ForkliftController::class, 'index']);
+        $auth->get('/forklifts/{id}', [ForkliftController::class, 'show']);
         $auth->get('/api/me', [MeController::class, 'show']);
 
         // Panel kierownika. Rola jest sprawdzana w backendzie, nie tylko przez ukrycie linków.

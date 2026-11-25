@@ -92,6 +92,16 @@ final class Request
     }
 
     /**
+     * Wszystkie parametry query stringa będące tekstem (tablice pomijamy).
+     *
+     * @return array<string, string>
+     */
+    public function queryParams(): array
+    {
+        return array_filter($this->query, static fn (mixed $value): bool => is_string($value));
+    }
+
+    /**
      * Query string razem ze znakiem "?" albo pusty tekst, np. do zapamiętania adresu przed logowaniem.
      */
     public function queryString(): string
