@@ -2,16 +2,6 @@
 
 System do zarządzania flotą wózków widłowych w magazynie: rezerwacje na zmianę, kontrola przed jazdą, zgłaszanie usterek ze zdjęciami i pilnowanie terminów badań UDT.
 
-> Projekt w budowie. Plan i lista zadań: [PLAN.md](PLAN.md). Sekcje oznaczone *(w przygotowaniu)* będą uzupełniane w kolejnych etapach.
-
-**Wdrożenie:** *(w przygotowaniu)*
-
-## Autorzy i zakres odpowiedzialności
-
-| Osoba | Zakres |
-|---|---|
-| *(do uzupełnienia)* | |
-
 ## Opis problemu i główne funkcje
 
 W magazynie kilkunastu operatorów korzysta z kilku wózków. Bez systemu trudno ustalić, kto i kiedy jeździ danym wózkiem i czy wykonał kontrolę przed jazdą. Usterki zgłasza się ustnie, a terminy badań UDT łatwo przegapić.
@@ -23,10 +13,6 @@ Główne funkcje:
 - zgłaszanie usterek ze zdjęciami; usterka krytyczna automatycznie wyłącza wózek z eksploatacji,
 - obsługa usterek, zarządzanie wózkami, badaniami UDT i użytkownikami (panel kierownika),
 - przypomnienia e-mail o wygasających badaniach UDT.
-
-## Zrzuty ekranu
-
-*(w przygotowaniu: co najmniej 5 widoków mobilnych i 5 desktopowych)*
 
 ## Architektura
 
