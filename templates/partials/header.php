@@ -12,6 +12,7 @@ $user = $this->currentUser();
         <nav class="site-header__nav" aria-label="<?= $this->t('nav.main_label') ?>">
             <ul>
                 <li><a href="/dashboard"><?= $this->t('nav.dashboard') ?></a></li>
+                <li><a href="/forklifts"><?= $this->t('nav.forklifts') ?></a></li>
                 <?php if ($this->can(Ability::ManageUsers)): ?>
                     <li><a href="/admin/users"><?= $this->t('nav.users') ?></a></li>
                 <?php endif; ?>

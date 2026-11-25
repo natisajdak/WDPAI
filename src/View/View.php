@@ -77,6 +77,17 @@ final class View
         return $this->e($this->translator->trans($key, $params));
     }
 
+    /**
+     * Tłumaczenie jako zwykły tekst (bez kodowania HTML), np. etykiety opcji przekazywane do partiala,
+     * który sam koduje wyjście. Do bezpośredniego wypisania w HTML służy t().
+     *
+     * @param array<string, string|int|float> $params
+     */
+    public function translate(string $key, array $params = []): string
+    {
+        return $this->translator->trans($key, $params);
+    }
+
     public function locale(): string
     {
         return $this->translator->locale();
@@ -138,6 +149,24 @@ final class View
     public function dateTime(?DateTimeInterface $value): string
     {
         return $value === null ? '–' : $this->e($value->format($this->translator->trans('format.datetime')));
+    }
+
+    public function date(?DateTimeInterface $value): string
+    {
+        return $value === null ? '–' : $this->e($value->format($this->translator->trans('format.date')));
+    }
+
+    /**
+     * Liczba z separatorem tysięcy bieżącego języka, np. „2 500” po polsku i „2,500” po angielsku.
+     */
+    public function number(int|float $value, int $decimals = 0): string
+    {
+        return $this->e(number_format(
+            $value,
+            $decimals,
+            $this->translator->trans('format.decimal_separator'),
+            $this->translator->trans('format.thousands_separator'),
+        ));
     }
 
     public function currentUser(): ?User
